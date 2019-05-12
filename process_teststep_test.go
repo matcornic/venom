@@ -40,7 +40,7 @@ func (t TestLogger) Fatalf(format string, args ...interface{}) {
 
 func TestRunTestStep(t *testing.T) {
 	v := New()
-	v.ConfigurationDirectory = "./dist/executors"
+	v.ConfigurationDirectory = "./dist"
 	v.LogLevel = LogLevelDebug
 	step := TestStep{
 		"type":   "http",
@@ -51,11 +51,12 @@ func TestRunTestStep(t *testing.T) {
 			"result.timeseconds ShouldBeLessThan 1",
 		},
 	}
+	l := TestLogger{t}
 
-	ctxMod, _ := v.getContextModule("")
-	ctx, _ := ctxMod.New(context.Background(), nil)
+	ctxMod, _ := v.getContextModule(nil)
+	ctx, _ := ctxMod.New(context.Background(), nil, v, l)
 
-	res, asserts, err := v.RunTestStep(ctx, "test", 0, step, TestLogger{t})
+	res, asserts, err := v.RunTestStep(ctx, "test", 0, step, l)
 	assert.NoError(t, err)
 	assert.NotNil(t, asserts)
 	t.Logf("assertions: %+v", asserts)

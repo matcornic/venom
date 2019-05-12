@@ -42,7 +42,6 @@ func NewContextFromEnv() venom.TestContext {
 func (e *executorContext) Bag() venom.HH {
 	return e.bag
 }
-
 func (e *executorContext) SetWorkingDirectory(s string) {
 	e.workingDirectory = s
 }

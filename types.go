@@ -83,6 +83,10 @@ type TestContext interface {
 	Bag() HH
 }
 
+type TestContextStarter interface {
+	Start(ctx TestContext) error
+}
+
 // ExecutorWithDefaultAssertions define default assertions on a Eexcutor
 type ExecutorWithDefaultAssertions interface {
 	Executor

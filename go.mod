@@ -30,6 +30,7 @@ require (
 	github.com/sirupsen/logrus v1.4.1
 	github.com/smartystreets/assertions v0.0.0-20190401211740-f487f9de1cd3
 	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a // indirect
+	github.com/spf13/cast v1.3.0
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/viper v1.3.2 // indirect
 	github.com/stretchr/testify v1.3.0

@@ -166,11 +166,11 @@ func (v *Venom) runTestCase(ctx TestContext, ts *TestSuite, tc *TestCase, l Logg
 	}()
 
 	if tc.Context != nil {
-		modCtx, err := v.getContextModule(tc.Context.Get("type"))
+		modCtx, err := v.getContextModule(tc.Context)
 		if err != nil {
 			return fmt.Errorf("unable to get context module: %v", err)
 		}
-		ctx, err = modCtx.New(ctx, ctx.Bag())
+		ctx, err = modCtx.New(ctx, ctx.Bag(), v, l)
 		if err != nil {
 			return fmt.Errorf("unable to get context: %v", err)
 		}

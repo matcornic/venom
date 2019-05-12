@@ -16,11 +16,12 @@ func Test_executorModule(t *testing.T) {
 	v := New()
 	v.init()
 	v.LogLevel = LogLevelDebug
+	l := TestLogger{t}
 
-	ctxMod, _ := v.getContextModule("")
-	ctx, _ := ctxMod.New(context.Background(), nil)
+	ctxMod, _ := v.getContextModule(nil)
+	ctx, _ := ctxMod.New(context.Background(), nil, v, l)
 
-	executor, err := m.New(ctx, v, TestLogger{t})
+	executor, err := m.New(ctx, v, l)
 	assert.NoError(t, err)
 	assert.NotNil(t, executor)
 
@@ -31,10 +32,9 @@ func Test_executorModule(t *testing.T) {
 }
 
 func Test_getExecutorModule(t *testing.T) {
-
 	v := New()
 	v.init()
-	v.ConfigurationDirectory = "./dist/executors"
+	v.ConfigurationDirectory = "./dist"
 	v.LogLevel = LogLevelDebug
 
 	step := TestStep{

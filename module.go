@@ -30,7 +30,27 @@ type VenomModule interface {
 }
 
 func (v *Venom) ListModules() ([]VenomModule, error) {
-	ls, err := ioutil.ReadDir(v.ConfigurationDirectory)
+	executorsPath := filepath.Join(v.ConfigurationDirectory, "executors")
+	contextsPath := filepath.Join(v.ConfigurationDirectory, "contexts")
+
+	var modList []VenomModule
+	execList, err := v.listModules(executorsPath)
+	if err != nil {
+		return nil, err
+	}
+	modList = append(modList, execList...)
+
+	ctxList, err := v.listModules(contextsPath)
+	if err != nil {
+		return nil, err
+	}
+	modList = append(modList, ctxList...)
+
+	return modList, nil
+}
+
+func (v *Venom) listModules(path string) ([]VenomModule, error) {
+	ls, err := ioutil.ReadDir(path)
 	if err != nil {
 		return nil, fmt.Errorf("unable to open venom configuration directory: %v", err)
 	}
@@ -43,13 +63,15 @@ func (v *Venom) ListModules() ([]VenomModule, error) {
 
 	var modList []VenomModule
 	for _, dir := range dirs {
-		modulePath := filepath.Join(v.ConfigurationDirectory, dir.Name())
+		modulePath := filepath.Join(path, dir.Name())
 		mod, err := getModule(modulePath)
 		if err != nil {
-			v.logger.Errorf(err.Error())
+			v.logger.Warn(err.Error())
 			continue
 		}
-		modList = append(modList, mod)
+		if mod != nil {
+			modList = append(modList, mod)
+		}
 	}
 	return modList, nil
 }
@@ -121,7 +143,7 @@ loop:
 
 		for _, chk := range modulesChekers {
 			if !chk.regex.MatchString(fName) {
-				continue loop
+				continue
 			}
 			if chk.os != nil {
 				os := chk.os(chk.regex.FindStringSubmatch(fName)...)
@@ -145,7 +167,6 @@ loop:
 			}
 
 			moduleEntryPointPath = filepath.Join(modulePath, fi.Name())
-
 			break loop
 		}
 		return nil, fmt.Errorf("%s is not a venom module: no suitable entry point has been found", name)
@@ -191,11 +212,11 @@ func newModule(moduleEntryPointPath string, manifest VenomModuleManifest) VenomM
 			entrypoint: moduleEntryPointPath,
 			manifest:   manifest,
 		}
-		//case "context":
-		//	return contextModule{
-		//		entrypoint: moduleEntryPointPath,
-		//		manifest:   manifest,
-		//	}
+	case "context":
+		return contextModule{
+			entrypoint: moduleEntryPointPath,
+			manifest:   manifest,
+		}
 	}
 	return mod
 }

@@ -50,7 +50,7 @@ func Test_getModule(t *testing.T) {
 					Name:             "dummy",
 					Author:           "François SAMIN",
 					InstallationPath: "",
-					Description:      "this is a dummy executor",
+					Description:      "this is a dummy module",
 					Homepage:         "http://nowhere.lolcat",
 					URL:              "http://nowhere.lolcat",
 					Version:          "0.1",
@@ -65,7 +65,6 @@ func Test_getModule(t *testing.T) {
 			if test.hasError {
 				assert.Error(t, err)
 				t.Logf("error is: %v", err)
-
 			} else {
 				assert.NoError(t, err)
 			}
@@ -73,6 +72,10 @@ func Test_getModule(t *testing.T) {
 			if test.mod == nil {
 				assert.Nil(t, mod)
 			} else {
+				if mod == nil {
+					t.Error("module should not be nil")
+					t.FailNow()
+				}
 				expectedManifest := test.mod.Manifest()
 				actualManifest := mod.Manifest()
 				t.Logf("manifest is: %+v", actualManifest)

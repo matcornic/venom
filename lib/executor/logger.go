@@ -35,7 +35,7 @@ type venomExecutorLogger struct {
 	hook *lsyslog.SyslogHook
 }
 
-func newLogger(syslogAddress, level string) error {
+func NewLogger(syslogAddress, level string) error {
 	logger := logrus.New()
 	logger.SetOutput(ioutil.Discard)
 	logger.SetFormatter(new(logrus.TextFormatter))

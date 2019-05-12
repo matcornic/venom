@@ -2,35 +2,62 @@ package venom
 
 import (
 	"context"
+	"fmt"
+
+	"github.com/spf13/cast"
 
 	"github.com/pkg/errors"
 )
 
-type contextModule interface {
-	Manifest() VenomModuleManifest
-	New(ctx context.Context, values HH) (TestContext, error)
-	ExecutorSupported() []string
+type contextModule struct {
+	entrypoint string
+	manifest   VenomModuleManifest
 }
 
-func (v *Venom) getContextModule(s string) (contextModule, error) {
+func (c contextModule) Manifest() VenomModuleManifest {
+	return c.manifest
+}
+
+func (e contextModule) New(ctx context.Context, values HH, v *Venom, l Logger) (TestContext, error) {
+	if e.manifest.Name == "default" {
+		return &commonContext{ctx, values, ""}, nil
+	}
+	return nil, fmt.Errorf("unrecognized context %s", e.manifest.Name)
+}
+
+func (v *Venom) getContextModule(ctxData HH) (*contextModule, error) {
+	if ctxData == nil {
+		ctxData = HH{}
+	}
+	s := cast.ToString(ctxData["type"])
 	if s == "" || s == "default" {
-		return commonContextModule{}, nil
+		return &contextModule{
+			manifest: VenomModuleManifest{
+				Name:        "default",
+				Type:        "context",
+				Version:     Version,
+				Description: "venom default context",
+			},
+		}, nil
+	}
+
+	allModules, err := v.ListModules()
+	if err != nil {
+		return nil, err
+	}
+	var mod *contextModule
+	for _, m := range allModules {
+		var manifest = m.Manifest()
+		e, ok := m.(contextModule)
+		if ok && manifest.Type == "context" && s == manifest.Name {
+			mod = &e
+			break
+		}
+	}
+	if mod == nil {
+		return nil, fmt.Errorf("unrecognized type %s", s)
 	}
 	return nil, errors.New("unsupported context")
-}
-
-type commonContextModule struct{}
-
-func (e commonContextModule) Manifest() VenomModuleManifest {
-	return VenomModuleManifest{}
-}
-
-func (e commonContextModule) New(ctx context.Context, values HH) (TestContext, error) {
-	return &commonContext{Context: ctx, values: values}, nil
-}
-
-func (e commonContextModule) ExecutorSupported() []string {
-	return nil
 }
 
 type commonContext struct {

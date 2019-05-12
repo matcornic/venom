@@ -12,13 +12,17 @@ GO_BUILD 							:=	go build
 LDFLAGS 							=	-ldflags "-X github.com/ovh/venom.Version=$(VERSION) -X github.com/ovh/venom.GOOS=$(GOOS) -X github.com/ovh/venom.GOARCH=$(GOARCH) -X github.com/ovh/venom.GITHASH=$(GITHASH) -X github.com/ovh/venom.BUILDTIME=$(BUILDTIME)"
 CORE 								:=	cmd/venom
 EXECUTORS 							:=	$(shell ls -d executors/*)
+CONTEXTS 							:=	$(shell ls -d contexts/*)
 IS_WINDOWS							= 	$(filter $(OS),windows)
 CORE_BINARIES 						=	$(addprefix $(TARGET_DIR)/, $(addsuffix _$(OS)_$(ARCH)$(if $(IS_WINDOWS),.exe), $(notdir $(CORE))))	
 CROSS_COMPILED_CORE_BINARIES 		= 	$(foreach OS, $(TARGET_OS), $(foreach ARCH, $(TARGET_ARCH), $(CORE_BINARIES)))
 EXECUTORS_BINARIES 					= 	$(addprefix $(TARGET_DIR)/$(EXEC)/, $(addsuffix _$(OS)_$(ARCH)$(if $(IS_WINDOWS),.exe), $(patsubst executors/%, %, $(EXEC))))	
 CROSS_COMPILED_EXECUTORS_BINARIES 	=	$(foreach OS, $(TARGET_OS), $(foreach ARCH, $(TARGET_ARCH), $(foreach EXEC, $(EXECUTORS), $(EXECUTORS_BINARIES))))
+CONTEXTS_BINARIES 					= 	$(addprefix $(TARGET_DIR)/$(CTX)/, $(addsuffix _$(OS)_$(ARCH)$(if $(IS_WINDOWS),.exe), $(patsubst contexts/%, %, $(CTX))))	
+CROSS_COMPILED_CONTEXTS_BINARIES 	=	$(foreach OS, $(TARGET_OS), $(foreach ARCH, $(TARGET_ARCH), $(foreach CTX, $(CONTEXTS), $(CONTEXTS_BINARIES))))
 COMMON_FILES 						=	$(shell ls *.go lib/cmd/*.go)
 EXECUTOR_COMMON_FILES				=  	$(shell find lib/executor -type f -name "*.go" -print)
+CONTEXT_COMMON_FILES				=  	$(shell find lib/context -type f -name "*.go" -print)
 TEST_START_SMTP := docker run -d --name fakesmtp -p 1025:25 -v /tmp/fakemail:/var/mail digiplant/fake-smtp
 TEST_KILL_SMTP := docker kill fakesmtp; docker rm fakesmtp || true
 TEST_START_KAFKA := docker network create kafka && docker run --net=kafka -d --name=zookeeper -e ZOOKEEPER_CLIENT_PORT=2181 confluentinc/cp-zookeeper:4.1.0 && docker run --net=kafka -d -p 9092:9092 --name=kafka -e KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181 -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092 -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 confluentinc/cp-kafka:4.1.0
@@ -40,19 +44,25 @@ define get_executor_path_from_binary_file
 $(strip $(shell echo $(1) | cut -d'/' -f2-3))
 endef
 
+define get_context_path_from_binary_file
+$(strip $(shell echo $(1) | cut -d'/' -f2-3))
+endef
+
 .PHONY: clean build gobuild gomodclean gomod test install uninstall mklink
 
 clean:
 	$(info *** remove $(TARGET_DIR) directory)
 	@rm -rf $(TARGET_DIR)
 
-build: $(TARGET_DIR) $(CROSS_COMPILED_EXECUTORS_BINARIES) $(CROSS_COMPILED_CORE_BINARIES)
+build: $(TARGET_DIR) $(CROSS_COMPILED_EXECUTORS_BINARIES) $(CROSS_COMPILED_CONTEXTS_BINARIES) $(CROSS_COMPILED_CORE_BINARIES)
 	$(info *******************************************************)
 	$(info *** venom $(VERSION) build successful)
 
 $(TARGET_DIR):
 	$(info *** create $(TARGET_DIR) directory)
 	@mkdir -p $(TARGET_DIR)/executors
+	@mkdir -p $(TARGET_DIR)/contexts
+
 
 $(CROSS_COMPILED_CORE_BINARIES): $(COMMON_FILES) $(call get_recursive_files, $(CORE))
 	$(info *** building core binary $@)
@@ -61,6 +71,10 @@ $(CROSS_COMPILED_CORE_BINARIES): $(COMMON_FILES) $(call get_recursive_files, $(C
 $(CROSS_COMPILED_EXECUTORS_BINARIES): $(COMMON_FILES) $(EXECUTOR_COMMON_FILES) $(call get_recursive_files, $(EXECUTORS))
 	$(info *** building executor binary $@ from package $(call get_executor_path_from_binary_file,$$@))
 	@$(MAKE) --no-print-directory  gobuild GOOS=$(call get_os_from_binary_file,$@) GOARCH=$(call get_arch_from_binary_file,$@) OUTPUT=$@ PACKAGE=$(call get_executor_path_from_binary_file,$@)
+
+$(CROSS_COMPILED_CONTEXTS_BINARIES): $(COMMON_FILES) $(CONTEXT_COMMON_FILES) $(call get_recursive_files, $(CONTEXTS))
+	$(info *** building context binary $@ from package $(call get_context_path_from_binary_file,$$@))
+	@$(MAKE) --no-print-directory  gobuild GOOS=$(call get_os_from_binary_file,$@) GOARCH=$(call get_arch_from_binary_file,$@) OUTPUT=$@ PACKAGE=$(call get_context_path_from_binary_file,$@)
 
 gobuild: vendor
 	$(info ... Package: $(PACKAGE) OS: $(GOOS) ARCH: $(GOARCH) -> $(OUTPUT))
