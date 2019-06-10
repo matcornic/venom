@@ -29,36 +29,36 @@ func (e executorModule) Manifest() VenomModuleManifest {
 }
 
 func (e executorModule) New(ctx context.Context, v *Venom, l Logger) (Executor, error) {
-	var starter executorStarter
-	starter.l = LoggerWithField(l, "executor", e.manifest.Name)
-	starter.v = v
-	starter.executorModule = e
-	starter.logServer = syslog.NewServer()
+	var es executorStarter
+	es.starter.l = LoggerWithField(l, "executor", e.manifest.Name)
+	es.starter.v = v
+	es.executorModule = e
+	es.starter.logServer = syslog.NewServer()
 	port, err := freeport.GetFreePort()
 	if err != nil {
 		return nil, err
 	}
-	starter.logServerAddress = "0.0.0.0:" + strconv.Itoa(port)
-	starter.logServer.SetHandler(starter.logsHandler(ctx))
-	starter.logServer.SetFormat(syslog.Automatic)
-	l.Debugf("Starting syslog server on %s", starter.logServerAddress)
-	if err := starter.logServer.ListenUDP(starter.logServerAddress); err != nil {
+	es.starter.logServerAddress = "0.0.0.0:" + strconv.Itoa(port)
+	es.starter.logServer.SetHandler(es.starter.logsHandler(ctx))
+	es.starter.logServer.SetFormat(syslog.Automatic)
+	l.Debugf("Starting syslog server on %s", es.starter.logServerAddress)
+	if err := es.starter.logServer.ListenUDP(es.starter.logServerAddress); err != nil {
 		return nil, err
 	}
-	if err := starter.logServer.ListenTCP(starter.logServerAddress); err != nil {
+	if err := es.starter.logServer.ListenTCP(es.starter.logServerAddress); err != nil {
 		return nil, err
 	}
 	go func(s *syslog.Server) {
 		s.Boot()
 		s.Wait()
-	}(starter.logServer)
+	}(es.starter.logServer)
 
 	go func(s *syslog.Server) {
 		<-ctx.Done()
 		s.Kill()
-	}(starter.logServer)
+	}(es.starter.logServer)
 
-	return &starter, nil
+	return &es, nil
 }
 
 func (e executorModule) GetDefaultAssertions(ctx TestContext) (*StepAssertions, error) {
@@ -97,14 +97,15 @@ func (e executorModule) GetDefaultAssertions(ctx TestContext) (*StepAssertions, 
 	return &res, nil
 }
 
-// manage the logger
-// manage the working directory
-// manage the log-level
-type executorStarter struct {
+type starter struct {
 	v                *Venom
 	l                Logger
 	logServer        *syslog.Server
 	logServerAddress string
+}
+
+type executorStarter struct {
+	starter starter
 	executorModule
 }
 
@@ -118,14 +119,14 @@ func (e *executorStarter) Run(ctx TestContext, step TestStep) (ExecutorResult, e
 	}
 
 	// Instanciate the execute command
-	cmd := exec.CommandContext(ctx, e.entrypoint, "execute", "--logger", e.logServerAddress, "--log-level", e.v.LogLevel)
+	cmd := exec.CommandContext(ctx, e.entrypoint, "execute", "--logger", e.starter.logServerAddress, "--log-level", e.starter.v.LogLevel)
 	cmd.Dir = ctx.GetWorkingDirectory()
 
 	bag := ctx.Bag()
 	cmd.Env = os.Environ()
 	for k := range bag {
 		v := bag.Get(k)
-		e.l.Debugf("Setting context value: %s:%s", k, v)
+		e.starter.l.Debugf("Setting context value: %s:%s", k, v)
 		cmd.Env = append(cmd.Env, "VENOM_CTX_"+k+"="+v)
 	}
 
@@ -137,7 +138,7 @@ func (e *executorStarter) Run(ctx TestContext, step TestStep) (ExecutorResult, e
 
 	encoder := yaml.NewEncoder(stdin)
 	if err := encoder.Encode(step); err != nil {
-		e.l.Errorf("%#v", step)
+		e.starter.l.Errorf("%#v", step)
 		return nil, fmt.Errorf("unable to write to stdin: %v", err)
 	}
 
@@ -149,7 +150,7 @@ func (e *executorStarter) Run(ctx TestContext, step TestStep) (ExecutorResult, e
 	cmd.Stdout = output
 	cmd.Stderr = output
 
-	e.l.Infof("Executing command %s", cmd.Path)
+	e.starter.l.Infof("Executing command %s", cmd.Path)
 
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("unable to start command: %v", err)
@@ -179,7 +180,7 @@ var (
 	msgRegexp   = regexp.MustCompile(`msg=(".*"|\w)`)
 )
 
-func (e *executorStarter) logsHandler(ctx context.Context) syslog.Handler {
+func (e *starter) logsHandler(ctx context.Context) syslog.Handler {
 	channel := make(syslog.LogPartsChannel)
 	handler := syslog.NewChannelHandler(channel)
 	go func() {

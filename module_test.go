@@ -26,25 +26,25 @@ func Test_getModule(t *testing.T) {
 			mod:      nil,
 		}, {
 			name:     "no entrypoint",
-			filename: "tests/fixtures/test-module-should-failed-with-no-entrypoint",
+			filename: "tests/fixtures/executors/test-module-should-failed-with-no-entrypoint",
 			hasError: true,
 			mod:      nil,
 		}, {
 			name:     "no entrypoint.1",
-			filename: "tests/fixtures/test-module-should-failed-with-no-entrypoint.1",
+			filename: "tests/fixtures/executors/test-module-should-failed-with-no-entrypoint.1",
 			hasError: true,
 			mod:      nil,
 		}, {
 			name:     "not executable file should failed",
-			filename: "tests/fixtures/test-module-should-failed",
+			filename: "tests/fixtures/executors/test-module-should-failed",
 			hasError: true,
 			mod:      nil,
 		}, {
 			name:     "should succeed",
-			filename: "tests/fixtures/test-module-should-succeed",
+			filename: "tests/fixtures/executors/test-module-should-succeed",
 			hasError: false,
 			mod: executorModule{
-				entrypoint: "tests/fixtures/test-module-should-succeed/test-module_linux_amd64",
+				entrypoint: "tests/fixtures/executors/test-module-should-succeed/test-module_linux_amd64",
 				manifest: VenomModuleManifest{
 					Type:             "executor",
 					Name:             "dummy",
